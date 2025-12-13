@@ -1,3 +1,10 @@
+# very lazy win x64 rust fork/paste, all credits goes to original creator and to snesrev for making smas playable on windows in the first place
+
+
+
+
+
+
 # Super Mario All-Stars Launcher for Super Mario World
 
 This is a simple launcher for the Super Mario All-Stars branch of the Super Mario World port by snesrev. It allows you to easily run the game on your system. 
