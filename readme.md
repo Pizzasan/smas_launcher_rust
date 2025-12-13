@@ -1,8 +1,8 @@
 # very lazy win x64 rust fork/paste, all credits goes to original creator and to snesrev for making smas playable on windows in the first place
 
-Credits / Copyrights 
-SDL: https://github.com/libsdl-org
-Font: Super Mario World  | Credit: David Fens 2013
+> Credits / Copyrights 
+> SDL: https://github.com/libsdl-org
+> Font: Super Mario World  | Credit: David Fens 2013
 > if i forgot any it wasn't on purpose
 
 # Super Mario All-Stars Launcher for Super Mario World
