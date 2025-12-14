@@ -5,14 +5,15 @@
 
 
 ## Credits / Copyrights
+- Font: Super Mario World  | Credit: David Fens 2013
 - gilrs: https://github.com/Arvamer/gilrs
 - SDL: https://github.com/libsdl-org/SDL
 - SDL Image: https://github.com/libsdl-org/SDL_image
-- SDL ttf: https://github.com/libsdl-org/SDL_ttf
 - SDL mixer: https://github.com/libsdl-org/SDL_mixer
+- SDL ttf: https://github.com/libsdl-org/SDL_ttf
+- serde-rs: https://github.com/serde-rs/serde
 - SMW / SMAS: https://github.com/snesrev/smw
 - SMAS Launcher (Python): https://github.com/stephini/SMAS_Launcher
-- Font: Super Mario World  | Credit: David Fens 2013
 > if i forgot any it wasn't on purpose
 
 
