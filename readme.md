@@ -3,7 +3,7 @@
 > This project is a fan-made launcher and is not affiliated with, endorsed, or approved by Nintendo.
 > This launcher does not include any Nintendo game ROMs or copyrighted music. Users must supply their own legally obtained game files and music.
 
-
+> AI was used (claude.ai, chatgpt)
 ## Credits / Copyrights
 - Font: Super Mario World  | Credit: David Fens 2013
 - gilrs: https://github.com/Arvamer/gilrs
