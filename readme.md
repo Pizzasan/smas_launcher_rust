@@ -1,4 +1,4 @@
-# very lazy win x64 rust fork/paste, all credits goes to original creator and to snesrev for making smas playable on windows in the first place
+# very lazy win x64 rust fork/paste, all credits goes to stephini for the initial launcher idea and to snesrev for making smas playable on windows in the first place
 > Legal Notice
 > Super Mario World, Super Mario All-Stars, Mario, and all related names, assets, and trademarks are the property of Nintendo.
 > This project is a fan-made launcher, is not affiliated with or endorsed by Nintendo, and does not include any copyrighted game data or ROMs.
