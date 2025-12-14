@@ -2,6 +2,8 @@
 
 ## Credits / Copyrights
 - SDL: https://github.com/libsdl-org
+- SMW / SMAS: https://github.com/snesrev/smw
+- SMAS Launcher (Python): https://github.com/stephini/SMAS_Launcher
 - Font: Super Mario World  | Credit: David Fens 2013
 > if i forgot any it wasn't on purpose
 
