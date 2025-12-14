@@ -13,7 +13,7 @@ use std::fs;
 use std::path::{Path, PathBuf};
 use std::process::Command;
 use std::time::Duration;
- use std::collections::HashMap;
+use std::collections::HashMap;
 use gilrs::{Gilrs, Button, Event as GilrsEvent, EventType};
 
 const SCREEN_WIDTH: u32 = 981;
@@ -21,13 +21,14 @@ const SCREEN_HEIGHT: u32 = 673;
 const BOX_SIZE: (u32, u32) = (267, 400);
 const SHAD_SIZE: (u32, u32) = (294, 440);
 const HOVER_BOX_SIZE: (u32, u32) = (294, 440);
+const TRANSITION_SPEED: f32 = 0.15; // Higher = faster transition
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
 struct LauncherOptions {
-    selector: u8,  // 1 = arrow, 2 = hover
-    bgtype: u8,    // 0 = color, 1 = png, 2 = anim
+    selector: u8,
+    bgtype: u8,
     background_color: (u8, u8, u8),
-    onload: u8,    // 1 = close, 2 = pause
+    onload: u8,
 }
 
 impl Default for LauncherOptions {
@@ -43,12 +44,9 @@ impl Default for LauncherOptions {
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
 struct GameOptions {
-    // General
     autosave: bool,
     disable_frame_delay: bool,
     save_playthrough: bool,
-    
-    // Graphics
     window_size: String,
     fullscreen: u8,
     window_scale: u8,
@@ -58,14 +56,10 @@ struct GameOptions {
     output_method: String,
     linear_filtering: bool,
     shader: String,
-    
-    // Sound
     enable_audio: bool,
     audio_freq: u32,
     audio_channels: u8,
     audio_samples: u32,
-    
-    // Controls
     controls: String,
     gamepad_controls: String,
 }
@@ -104,6 +98,7 @@ struct Launcher {
     selected_game: usize,
     mouse_x: i32,
     mouse_y: i32,
+    color_transitions: HashMap<usize, f32>, // Track color blend for each game (0.0 = grayscale, 1.0 = full color)
 }
 
 impl Launcher {
@@ -112,7 +107,6 @@ impl Launcher {
         let sfc_dir = install_dir.join("sfcs");
         let launcher_dir = install_dir.join("launcher");
         
-        // Create directories if they don't exist
         fs::create_dir_all(&sfc_dir)?;
         fs::create_dir_all(&launcher_dir)?;
         fs::create_dir_all(&launcher_dir.join("UI"))?;
@@ -135,11 +129,11 @@ impl Launcher {
             selected_game: 0,
             mouse_x: 0,
             mouse_y: 0,
+            color_transitions: HashMap::new(),
         })
     }
     
     fn get_install_dir() -> Result<PathBuf, Box<dyn std::error::Error>> {
-        // Use current directory instead of AppData
         let current_dir = std::env::current_dir()?;
         Ok(current_dir)
     }
@@ -166,7 +160,6 @@ impl Launcher {
         let ini_path = install_dir.join("smw.ini");
         
         if ini_path.exists() {
-            // Parse INI file - simplified version
             Ok(GameOptions::default())
         } else {
             Ok(GameOptions::default())
@@ -186,7 +179,6 @@ impl Launcher {
             }
         }
         
-        // Sort with priority
         let priority = ["smb1.sfc", "smbll.sfc", "smw.sfc"];
         sfcs.sort_by(|a, b| {
             let a_idx = priority.iter().position(|&x| x == a).unwrap_or(priority.len());
@@ -266,6 +258,24 @@ impl Launcher {
             }
         }
     }
+    
+    fn update_color_transitions(&mut self, num_games: usize) {
+        for idx in 0..num_games {
+            let target = if idx == self.selected_game { 1.0 } else { 0.0 };
+            let current = self.color_transitions.entry(idx).or_insert(0.0);
+            
+            // Smooth lerp towards target
+            if (*current - target).abs() > 0.01 {
+                *current += (target - *current) * TRANSITION_SPEED;
+            } else {
+                *current = target;
+            }
+        }
+    }
+    
+    fn get_color_blend(&self, idx: usize) -> f32 {
+        *self.color_transitions.get(&idx).unwrap_or(&0.0)
+    }
 }
 
 #[derive(Debug)]
@@ -315,7 +325,6 @@ impl UIButton {
         canvas.set_draw_color(color);
         canvas.fill_rect(self.rect).unwrap();
         
-        // Draw border
         canvas.set_draw_color(Color::RGB(50, 50, 50));
         canvas.draw_rect(self.rect).unwrap();
     }
@@ -331,7 +340,6 @@ impl UIButton {
     ) -> Result<(), String> {
         self.draw(canvas, mouse_x, mouse_y, pressed);
         
-        // Render text
         let surface = font
             .render(&self.label)
             .blended(Color::RGB(255, 255, 255))
@@ -355,7 +363,7 @@ impl UIButton {
 }
 
 fn main() -> Result<(), Box<dyn std::error::Error>> {
-    println!("=== SMAS Launcher (Rust) ===");
+    println!("=== SMAS Launcher (Rust) - Grayscale Selection ===");
     println!("Initializing...");
     
     let mut launcher = Launcher::new()?;
@@ -369,7 +377,6 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     let _image_context = sdl2::image::init(InitFlag::PNG)?;
     let ttf_context = ttf::init().map_err(|e| e.to_string())?;
     
-    // Initialize audio
     let frequency = 44_100;
     let format = AUDIO_S16LSB;
     let channels = DEFAULT_CHANNELS;
@@ -397,12 +404,29 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         None
     };
     
+    // Load launch sound effect
+    let launch_sound_path = launcher.launcher_dir.join("pg.wav");
+    let launch_sound = if launch_sound_path.exists() {
+        match sdl2::mixer::Chunk::from_file(&launch_sound_path) {
+            Ok(s) => {
+                println!("Loaded launch sound: {}", launch_sound_path.display());
+                Some(s)
+            }
+            Err(e) => {
+                eprintln!("Failed to load launch sound: {}", e);
+                None
+            }
+        }
+    } else {
+        eprintln!("Launch sound not found at: {}", launch_sound_path.display());
+        None
+    };
+    
     // Play music if loaded
     if let Some(ref m) = music {
         m.play(-1)?; // -1 for infinite loop
     }
     
-    // Get native refresh rate
     let display_mode = video_subsystem.current_display_mode(0)?;
     let refresh_rate = display_mode.refresh_rate;
     println!("Display refresh rate: {}Hz", refresh_rate);
@@ -421,10 +445,8 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     
     let texture_creator = canvas.texture_creator();
     
-    // Hide system cursor and use custom cursor
     sdl_context.mouse().show_cursor(false);
     
-    // Load custom cursor image if available
     let cursor_path = launcher.launcher_dir.join("UI").join("Cursor.png");
     let cursor_texture = if cursor_path.exists() {
         match texture_creator.load_texture(&cursor_path) {
@@ -442,7 +464,6 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         None
     };
     
-    // Load background image if available
     let bg_path = launcher.launcher_dir.join("MBG.png");
     let bg_texture = if bg_path.exists() && launcher.launcher_options.bgtype == 2 {
         match texture_creator.load_texture(&bg_path) {
@@ -459,7 +480,6 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         None
     };
     
-    // Load pointer/arrow image for selector mode 1
     let pointer_path = launcher.launcher_dir.join("pointer.png");
     let pointer_texture = if pointer_path.exists() && launcher.launcher_options.selector == 1 {
         match texture_creator.load_texture(&pointer_path) {
@@ -476,7 +496,6 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         None
     };
     
-    // Load font
     let font_path = launcher.launcher_dir.join("smw.ttf");
     let font = if font_path.exists() {
         match ttf_context.load_font(&font_path, 24) {
@@ -495,7 +514,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     };
     
     let mut event_pump = sdl_context.event_pump()?;
-    let mut mouse_pressed = false;
+    let mouse_pressed = false;
     
     let sfcs = launcher.scan_sfc_files();
     
@@ -508,17 +527,19 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
             println!("  {}. {}", idx + 1, sfc);
         }
     }
+    
     let mut covers: HashMap<String, Texture> = HashMap::new();
     for sfc in &sfcs {
         let name = sfc.trim_end_matches(".sfc");
         let path = launcher.launcher_dir.join("pngs").join(format!("{}.png", name));
         if path.exists() {
-            if let Ok(tex) = texture_creator.load_texture(&path) {
+            if let Ok(mut tex) = texture_creator.load_texture(&path) {
+                tex.set_blend_mode(sdl2::render::BlendMode::Blend);
                 covers.insert(sfc.clone(), tex);
             }
         }
     }
-    // Create UI buttons
+    
     let options_btn = UIButton::new(
         (SCREEN_WIDTH / 2 - 75) as i32,
         593,
@@ -543,26 +564,26 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         "Update"
     );
     
-    println!("\nLauncher ready!");
+    println!("\nLauncher ready with grayscale selection!");
     println!("Controls:");
     println!("  - Click game box to launch");
     println!("  - Arrow keys or gamepad D-Pad to navigate");
     println!("  - Enter or gamepad A/X to launch");
     println!("  - ESC or gamepad B/Circle to quit");
     
+    let mut should_launch: Option<usize> = None;
+    
     'running: loop {
         let frame_start = std::time::Instant::now();
         
-        // Handle gamepad input
+        // Update color transitions for smooth animation
+        launcher.update_color_transitions(sfcs.len());
+        
         if let Some(action) = launcher.handle_gamepad_input() {
             match action {
                 GamepadAction::Confirm => {
                     if !sfcs.is_empty() {
-                        if let Err(e) = launcher.launch_game(&sfcs[launcher.selected_game]) {
-                            eprintln!("Failed to launch game: {}", e);
-                        } else if launcher.launcher_options.onload == 1 {
-                            break 'running;
-                        }
+                        should_launch = Some(launcher.selected_game);
                     }
                 }
                 GamepadAction::Left => {
@@ -582,7 +603,6 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
             }
         }
         
-        // Handle SDL events
         for event in event_pump.poll_iter() {
             match event {
                 Event::Quit { .. }
@@ -590,12 +610,21 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
                     keycode: Some(Keycode::Escape),
                     ..
                 } => break 'running,
-                Event::MouseButtonDown { .. } => mouse_pressed = true,
-                Event::MouseButtonUp { .. } => mouse_pressed = false,
+                Event::MouseButtonDown { mouse_btn: sdl2::mouse::MouseButton::Left, x, y, .. } => {
+                    // Check if clicked on a game box
+                    for (idx, sfc) in sfcs.iter().enumerate().take(3) {
+                        if let Some(rect) = launcher.get_game_box_rect(idx) {
+                            if rect.contains_point((x, y)) {
+                                launcher.selected_game = idx;
+                                should_launch = Some(idx);
+                                break;
+                            }
+                        }
+                    }
+                }
                 Event::MouseMotion { x, y, .. } => {
                     launcher.mouse_x = x;
                     launcher.mouse_y = y;
-                    // Update selection based on mouse position
                     launcher.update_selection_from_mouse(&sfcs);
                 }
                 Event::KeyDown {
@@ -621,11 +650,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
                     ..
                 } => {
                     if !sfcs.is_empty() {
-                        if let Err(e) = launcher.launch_game(&sfcs[launcher.selected_game]) {
-                            eprintln!("Failed to launch game: {}", e);
-                        } else if launcher.launcher_options.onload == 1 {
-                            break 'running;
-                        }
+                        should_launch = Some(launcher.selected_game);
                     }
                 }
                 _ => {}
@@ -635,7 +660,6 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         let mouse_state = event_pump.mouse_state();
         let (mouse_x, mouse_y) = (mouse_state.x(), mouse_state.y());
         
-        // Update launcher mouse position
         launcher.mouse_x = mouse_x;
         launcher.mouse_y = mouse_y;
         
@@ -653,20 +677,42 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 
             let rect = Rect::new(x, y, BOX_SIZE.0, BOX_SIZE.1);
             let is_selected = idx == launcher.selected_game;
+            let color_blend = launcher.get_color_blend(idx);
 
             canvas.set_draw_color(Color::RGB(200, 200, 200));
             canvas.fill_rect(rect)?;
             canvas.set_draw_color(Color::RGB(100, 100, 100));
             canvas.draw_rect(rect)?;
 
-            if let Some(tex) = covers.get(sfc) {
+            if let Some(tex) = covers.get_mut(sfc) {
                 let dst = Rect::new(
                     x + 10,
                     y + 10,
                     BOX_SIZE.0 - 20,
                     BOX_SIZE.1 - 70,
                 );
+                
+                // Apply grayscale effect to unselected ROMs
+                // color_blend: 0.0 = grayscale, 1.0 = full color
+                // When selected, color_blend = 1.0 (full color)
+                // When unselected, color_blend = 0.0 (grayscale)
+                
+                // Simple grayscale: average of RGB creates gray tone
+                // We use equal RGB values for true grayscale
+                let gray_intensity = 128; // Brightness for grayscale (0-255)
+                
+                // Interpolate between gray and full color
+                let r_mod = (gray_intensity as f32 + (255.0 - gray_intensity as f32) * color_blend) as u8;
+                let g_mod = (gray_intensity as f32 + (255.0 - gray_intensity as f32) * color_blend) as u8;
+                let b_mod = (gray_intensity as f32 + (255.0 - gray_intensity as f32) * color_blend) as u8;
+                
+                tex.set_color_mod(r_mod, g_mod, b_mod);
+                tex.set_alpha_mod(255);
+                
                 canvas.copy(tex, None, dst)?;
+                
+                // Reset color mod for next frame
+                tex.set_color_mod(255, 255, 255);
             }
 
             if let Some(f) = &font {
@@ -685,11 +731,39 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 
             if is_selected {
                 canvas.set_draw_color(Color::RGB(255, 220, 0));
-                canvas.draw_rect(rect)?;
+                let thickness = 3;
+                for i in 0..thickness {
+                    let thick_rect = Rect::new(
+                        rect.x() - i,
+                        rect.y() - i,
+                        rect.width() + (i * 2) as u32,
+                        rect.height() + (i * 2) as u32
+                    );
+                    canvas.draw_rect(thick_rect)?;
+                }
             }
         }
 
         canvas.present();
+        
+        // Handle launching after rendering
+        if let Some(game_idx) = should_launch.take() {
+            // Fade out music and play launch sound
+            sdl2::mixer::Music::fade_out(500)?; // 500ms fade out
+            if let Some(ref sound) = launch_sound {
+                sdl2::mixer::Channel::all().play(&sound, 0)?;
+            }
+            
+            // Small delay to let sound play
+            std::thread::sleep(Duration::from_millis(100));
+            
+            if let Err(e) = launcher.launch_game(&sfcs[game_idx]) {
+                eprintln!("Failed to launch game: {}", e);
+            } else if launcher.launcher_options.onload == 1 {
+                break 'running;
+            }
+        }
+        
         std::thread::sleep(Duration::from_millis(16));
     }
 
