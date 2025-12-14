@@ -1,11 +1,22 @@
 # very lazy win x64 rust fork/paste, all credits goes to original creator and to snesrev for making smas playable on windows in the first place
+> Legal Notice
+> Super Mario World, Super Mario All-Stars, Mario, and all related names, assets, and trademarks are the property of Nintendo.
+> This project is a fan-made launcher, is not affiliated with or endorsed by Nintendo, and does not include any copyrighted game data or ROMs.
+
 
 ## Credits / Copyrights
-- SDL: https://github.com/libsdl-org
+- gilrs: https://github.com/Arvamer/gilrs
+- SDL: https://github.com/libsdl-org/SDL
+- SDL Image: https://github.com/libsdl-org/SDL_image
+- SDL ttf: https://github.com/libsdl-org/SDL_ttf
+- SDL mixer: https://github.com/libsdl-org/SDL_mixer
 - SMW / SMAS: https://github.com/snesrev/smw
 - SMAS Launcher (Python): https://github.com/stephini/SMAS_Launcher
 - Font: Super Mario World  | Credit: David Fens 2013
 > if i forgot any it wasn't on purpose
+
+
+
 
 # Super Mario All-Stars Launcher for Super Mario World
 
